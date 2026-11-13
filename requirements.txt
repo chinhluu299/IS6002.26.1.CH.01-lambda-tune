@@ -1,0 +1,10 @@
+psycopg2-binary==2.9.13
+numpy==2.5.4
+scipy==1.18.1         # scipy.optimize.milp: ILP nén prompt (§3.3)
+scikit-learn==1.9.1   # K-Means gom truy vấn (§5.4)
+matplotlib==3.11.2
+duckdb==1.5.6         # sinh dữ liệu TPC-H (load_tpch.py)
+openai==3.42.1        # gọi LLM qua API chuẩn OpenAI (Alg. 1)
+sqlglot==30.20.0      # tách vị từ lọc cột–hằng cho prompt mở rộng (D1)
+mlos-core[smac]==0.6.2  # baseline LlamaTune (bộ chuyển không gian LlamaTune + SMAC), như bài báo dùng qua MLOS
+smac==2.4.1

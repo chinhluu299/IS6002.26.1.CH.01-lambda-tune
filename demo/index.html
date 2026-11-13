@@ -1,0 +1,1076 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>λ-Tune chạy trực tiếp</title>
+<style>
+:root {
+  --bg: #f4f5f7; --surface: #ffffff; --surface-2: #eef0f3; --fg: #18202a; --muted: #5a6575; --line: #dce0e6;
+  --accent: #2a55cc; --accent-soft: #e5ebfb; --ok: #1d8648; --ok-soft: #e1f2e7; --cut: #c43535; --cut-soft: #fae6e6;
+  --skip: #8a93a1; --idx: #7646c0; --idx-soft: #eee7f9; --restart: #c07812; --restart-soft: #faefdb;
+  --d1: #0b7686; --d2: #b2501a; --d3: #6a46c0; --on-color: #ffffff;
+  --console-bg: #10151c; --console-fg: #d5dbe3; --console-muted: #7c8796;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1217; --surface: #161b22; --surface-2: #1d242d; --fg: #e5e9ef; --muted: #98a3b2; --line: #2a323c;
+    --accent: #7c9bf4; --accent-soft: #1d2843; --ok: #4dc07e; --ok-soft: #163020; --cut: #ef7070; --cut-soft: #3a1c1c;
+    --skip: #7b8594; --idx: #b28bef; --idx-soft: #29203f; --restart: #e2a54a; --restart-soft: #392b14;
+    --d1: #4fc1cf; --d2: #ef925a; --d3: #b28bef; --on-color: #0e1217;
+    --console-bg: #0a0d11; --console-fg: #d5dbe3; --console-muted: #6f7a89;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1217; --surface: #161b22; --surface-2: #1d242d; --fg: #e5e9ef; --muted: #98a3b2; --line: #2a323c;
+  --accent: #7c9bf4; --accent-soft: #1d2843; --ok: #4dc07e; --ok-soft: #163020; --cut: #ef7070; --cut-soft: #3a1c1c;
+  --skip: #7b8594; --idx: #b28bef; --idx-soft: #29203f; --restart: #e2a54a; --restart-soft: #392b14;
+  --d1: #4fc1cf; --d2: #ef925a; --d3: #b28bef; --on-color: #0e1217;
+  --console-bg: #0a0d11; --console-fg: #d5dbe3; --console-muted: #6f7a89;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+code, .mono, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+code { font-size: .92em; background: var(--surface-2); padding: 0 4px; border-radius: 4px; }
+button, select, input { font: inherit; color: inherit; }
+button { background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; padding: 5px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-color); font-weight: 600; }
+button.danger { background: var(--cut); border-color: var(--cut); color: var(--on-color); font-weight: 600; }
+select, input[type=number] { background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; }
+input[type=number] { width: 80px; }
+
+.top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 14px; padding: 9px 20px;
+  background: var(--surface); border-bottom: 1px solid var(--line); }
+.brand { font-size: 18px; font-weight: 700; white-space: nowrap; }
+.brand span { font-weight: 400; color: var(--muted); font-size: 14px; margin-left: 6px; }
+.health { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; font-size: 13px; }
+.health span { padding: 2px 9px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
+.health .ok::before, .health .bad::before, .health .warn::before { content: "●"; margin-right: 5px; }
+.health .ok::before { color: var(--ok); } .health .bad::before { color: var(--cut); } .health .warn::before { color: var(--restart); }
+#clock { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; white-space: nowrap; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: center; padding: 10px 20px;
+  background: var(--surface); border-bottom: 1px solid var(--line); }
+.group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line); background: var(--surface); padding: 5px 11px; }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+.tag { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 0 6px; border-radius: 5px; color: var(--on-color); vertical-align: 1px; }
+.tag.D1 { background: var(--d1); } .tag.D2 { background: var(--d2); } .tag.D3 { background: var(--d3); }
+
+main { display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 16px; padding: 16px 20px 40px; align-items: start; }
+#flow { min-width: 0; }
+#console { position: sticky; top: 58px; height: calc(100vh - 74px); display: flex; flex-direction: column;
+  background: var(--console-bg); color: var(--console-fg); border-radius: 10px; overflow: hidden; }
+#console .head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 12px; border-bottom: 1px solid #ffffff1a; font-size: 13px; }
+#console .head b { font-size: 14px; }
+#console .head label { color: var(--console-muted); }
+#logpath { color: var(--console-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#log { flex: 1; overflow: auto; padding: 8px 0 16px; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.ln { display: grid; grid-template-columns: 52px 1fr; padding: 0 10px; }
+.ln .ts { color: var(--console-muted); }
+.ln .tx { white-space: pre-wrap; word-break: break-word; }
+.ln.hd { margin-top: 8px; } .ln.hd .tx { color: #8fb0ff; font-weight: 700; }
+.ln.upd .tx { color: #ffffff; font-weight: 700; }
+.ln.ev .tx { color: #c7b3f5; }
+.ln.ok .tx { color: #9fd8b4; } .ln.cut .tx { color: #ff9a9a; } .ln.idx .tx { color: #c9a8ff; }
+.ln.sys .tx, .ln.detail .tx { color: #a9b3c1; }
+.ln.res .tx { color: #ffd479; font-weight: 700; } .ln.warn .tx { color: #f5c36b; } .ln.err .tx { color: #ff7b7b; font-weight: 700; }
+#log.brief .ln.detail { display: none; }
+
+.banner { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--fg); border-radius: 10px; padding: 9px 14px; margin-bottom: 14px; }
+.banner.err { background: var(--cut-soft); border-color: var(--cut); }
+.intro { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.intro h2 { margin: 0 0 8px; font-size: 20px; }
+.intro h2 small { font-size: 14px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.intro ol { padding-left: 22px; } .intro li { margin: 3px 0; }
+
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 14px; scroll-margin-top: 66px; }
+.stage > header { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 11px 16px; }
+.stage .n { width: 27px; height: 27px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); font-weight: 700; font-size: 13px; flex: none; }
+.stage h2 { margin: 0; font-size: 17px; }
+.stage .ref { color: var(--muted); font-size: 13px; }
+.stage .st { margin-left: auto; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stage.run { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.stage.run .n { background: var(--accent); color: var(--on-color); }
+.stage.done .n { background: var(--ok); color: var(--on-color); }
+.stage.stopped .n, .stage.error .n { background: var(--cut); color: var(--on-color); }
+.stage.wait, .stage.skipped { opacity: .55; }
+.stage.wait .body, .stage.skipped .body { display: none; }
+.stage .body { padding: 12px 16px 16px; border-top: 1px solid var(--line); }
+.stage .body h3:first-child { margin-top: 0; }
+h3 { font-size: 14px; margin: 16px 0 8px; }
+h3 small { font-weight: 400; color: var(--muted); }
+.empty { color: var(--muted); font-style: italic; }
+.note { background: var(--surface-2); border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: 14px; }
+.warnbox { background: var(--restart-soft); border-left: 3px solid var(--restart); border-radius: 6px; padding: 6px 10px; margin: 6px 0; font-size: 13.5px; }
+.errbox { background: var(--cut-soft); border-left: 3px solid var(--cut); border-radius: 6px; padding: 8px 12px; margin: 10px 0; }
+.pill { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.pill.ok { color: var(--ok); border-color: var(--ok); } .pill.skip { color: var(--skip); }
+.pill.saved { color: var(--muted); } .pill.live { color: var(--accent); border-color: var(--accent); }
+
+.qgrid { display: flex; flex-wrap: wrap; gap: 7px; }
+.qc { position: relative; display: inline-flex; flex-direction: column; align-items: center; min-width: 50px; padding: 3px 6px 2px;
+  border-radius: 6px; border: 1px solid var(--line); background: var(--surface); font: 12px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.qc small { font-size: 10.5px; color: var(--muted); min-height: 13px; font-variant-numeric: tabular-nums; }
+.qc.ok { background: var(--ok-soft); border-color: var(--ok); }
+.qc.cut { background: var(--cut-soft); border-color: var(--cut); }
+.qc.run { background: var(--accent-soft); border-color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+.qc.prev { opacity: .5; border-style: dotted; }
+.qc.never { opacity: .45; border-style: dashed; }
+.qc .ix { position: absolute; top: -8px; right: -7px; font-style: normal; font-size: 10px; line-height: 15px; padding: 0 4px; border-radius: 8px; background: var(--idx); color: var(--on-color); }
+@keyframes pulse { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .qc.run, .bar.run { animation: none; } }
+
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); padding: 4px 8px; }
+td { border-bottom: 1px solid var(--line); padding: 4px 8px; vertical-align: middle; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.bars td.barcell { width: 40%; }
+.bar { display: block; height: 10px; border-radius: 3px; background: var(--accent); min-width: 2px; }
+.bar.d1 { background: var(--d1); } .bar.run { animation: pulse 1s infinite; background: var(--skip); }
+.bar.slow { background: var(--d2); } .bar.cut { background: var(--cut); }
+tr.dim td { color: var(--muted); }
+tr.dim .bar { opacity: .35; }
+tr.slow td { font-weight: 600; }
+tr.best td { background: var(--ok-soft); }
+td.top { font-size: 12px; color: var(--muted); }
+
+pre.prompt { white-space: pre-wrap; word-break: break-word; background: var(--surface-2); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; max-height: 460px; overflow: auto; margin: 6px 0; }
+pre.prompt .jl { color: var(--accent); }
+pre.prompt .d1 { background: color-mix(in srgb, var(--d1) 16%, transparent); color: var(--fg); }
+pre.prompt .spec { font-weight: 700; }
+pre.prompt .slowl { color: var(--d2); font-weight: 600; }
+pre.prompt .cmd { color: var(--muted); }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 4px; }
+.tile { background: var(--surface-2); border-radius: 8px; padding: 8px 12px; }
+.tile .k { font-size: 12px; color: var(--muted); }
+.tile .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tile .v small { font-size: 13px; font-weight: 500; color: var(--muted); }
+.tile.good .v { color: var(--ok); }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.card { border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; background: var(--surface); }
+.card .ch { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.card .stats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: var(--muted); margin: 4px 0; }
+.card .stats b { color: var(--fg); }
+.card.calling { border-style: dashed; border-color: var(--accent); }
+details { margin-top: 4px; font-size: 13px; }
+details summary { cursor: pointer; color: var(--accent); }
+pre.cmds { white-space: pre-wrap; word-break: break-word; font-size: 11.5px; background: var(--surface-2); border-radius: 6px; padding: 6px 8px; max-height: 260px; overflow: auto; margin: 4px 0; }
+
+.kinds { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.kind { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.k-unknown { color: var(--cut); } .k-invalid { color: var(--restart); } .k-clamp { color: var(--accent); }
+.k-deny { color: var(--d2); } .k-dup { color: var(--skip); } .k-missing { color: var(--cut); } .k-redundant { color: var(--idx); }
+ul.problems { margin: 4px 0; padding-left: 18px; font-size: 12.5px; }
+ul.problems li { margin: 1px 0; }
+
+.gantt { margin: 8px 0 2px; overflow: hidden; }
+.gantt svg { display: block; }
+.gantt .grid { stroke: var(--line); }
+.gantt .tick { fill: var(--muted); font-size: 11px; }
+.gantt .rowlabel { fill: var(--fg); font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.gantt .rowlabel.best { fill: var(--ok); font-weight: 700; }
+.gantt .rowline { stroke: var(--line); stroke-dasharray: 2 3; }
+.gantt .ev { fill: var(--surface-2); stroke: var(--line); }
+.gantt .sg { stroke: var(--surface); stroke-width: .7; }
+.sg.restart { fill: var(--restart); } .sg.index { fill: var(--idx); } .sg.ok { fill: var(--ok); } .sg.cut { fill: var(--cut); } .sg.run { fill: var(--accent); }
+.gantt .star { fill: var(--ok); font-size: 15px; font-weight: 700; }
+.skipmark line { stroke: var(--skip); stroke-width: 2; } .skipmark text { fill: var(--skip); font-size: 11px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -2px; }
+
+.cur { border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; margin-top: 12px; }
+.cur .title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 6px; }
+.budget { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; margin: 6px 0 2px; }
+.budget span { display: block; height: 100%; background: var(--accent); }
+.budget.over span { background: var(--cut); }
+.lazy { list-style: none; padding: 0; margin: 8px 0 0; font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.lazy li { white-space: nowrap; }
+.lazy li::before { content: "◆ "; color: var(--idx); }
+.lazy li.made { color: var(--muted); }
+.lazy li small { color: var(--muted); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+ol.narr { list-style: none; padding: 0; margin: 0; max-height: 420px; overflow: auto; }
+ol.narr li { padding: 6px 10px; border-left: 3px solid var(--line); margin-bottom: 5px; font-size: 14px; background: var(--surface-2); border-radius: 0 6px 6px 0; }
+ol.narr li:first-child { box-shadow: 0 0 0 1px var(--accent) inset; }
+ol.narr li.best { border-left-color: var(--ok); } ol.narr li.cut { border-left-color: var(--cut); }
+ol.narr li.skip { border-left-color: var(--skip); } ol.narr li.info { border-left-color: var(--accent); }
+ol.narr .t { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; margin-right: 6px; }
+.meta { overflow-x: auto; }
+.meta table { font-size: 13px; }
+.meta th, .meta td { padding: 4px 5px; }
+.meta td:first-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+.state { font-size: 12px; white-space: nowrap; }
+.state.complete { color: var(--ok); font-weight: 600; } .state.cut { color: var(--cut); } .state.skip { color: var(--skip); } .state.run { color: var(--accent); font-weight: 600; }
+
+@media (max-width: 1150px) {
+  main { grid-template-columns: minmax(0, 1fr); }
+  #console { position: static; height: 55vh; }
+  .two { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .top, .controls, main { padding-left: 16px; padding-right: 16px; }
+  .brand span { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">λ-Tune <span>chạy trực tiếp · TPC-H SF1 · PostgreSQL</span></div>
+  <span id="clock"></span>
+  <div class="health" id="health"><span>đang kiểm tra…</span></div>
+  <button id="theme" title="Đổi giao diện sáng / tối">◐</button>
+</header>
+
+<section class="controls">
+  <div class="group">
+    <span class="lbl">Biến thể</span>
+    <div class="seg" id="presets">
+      <button data-p="000">λ-Tune</button>
+      <button data-p="010">+ D2</button>
+      <button data-p="101">+ D1 + D3</button>
+      <button data-p="111">+ D1 + D2 + D3</button>
+    </div>
+    <label><input type="checkbox" id="d1"> <span class="tag D1">D1</span> prompt mở rộng</label>
+    <label><input type="checkbox" id="d2"> <span class="tag D2">D2</span> vòng phản hồi</label>
+    <label><input type="checkbox" id="d3"> <span class="tag D3">D3</span> kiểm định</label>
+  </div>
+  <div class="group">
+    <span class="lbl">LLM</span>
+    <label><input type="radio" name="llm" value="saved" checked> phản hồi đã lưu</label>
+    <label id="liveLabel"><input type="radio" name="llm" value="live"> gọi thật <span id="model"></span></label>
+    <span class="lbl">Ngân sách B</span>
+    <label><input type="number" id="budget" min="1" step="1" placeholder="∞"> token</label>
+  </div>
+  <div class="group">
+    <button id="run" class="primary">▶ Chạy</button>
+    <button id="stop" class="danger" disabled>■ Dừng</button>
+  </div>
+  <div class="group">
+    <span class="lbl">Lần chạy đã ghi</span>
+    <select id="runs"><option value="">(chưa có)</option></select>
+    <button id="load">Mở</button>
+  </div>
+</section>
+
+<main>
+  <div id="flow">
+    <div id="banner"></div>
+    <div id="stages"></div>
+  </div>
+  <aside id="console">
+    <div class="head">
+      <b>Log</b>
+      <label><input type="checkbox" id="brief"> chỉ tóm tắt</label>
+      <label><input type="checkbox" id="follow" checked> tự cuộn theo bước đang chạy</label>
+      <span id="logpath"></span>
+    </div>
+    <div id="log"></div>
+  </aside>
+</main>
+
+<script>
+'use strict';
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const minus = s => String(s).replace(/^-/, '−');
+const num = (x, d = 2) => x == null || Number.isNaN(Number(x)) ? '—' : minus(Number(x).toFixed(d).replace('.', ','));
+const sec = (x, d = 2) => x == null ? '—' : num(x, d) + ' s';
+function compact(n) {
+  if (n == null) return '';
+  if (n >= 1e9) return num(n / 1e9, 1) + 'G';
+  if (n >= 1e6) return num(n / 1e6, 1) + 'M';
+  if (n >= 1e3) return num(n / 1e3, 1) + 'K';
+  return String(Math.round(n));
+}
+function clock(t) {
+  if (t == null || t < 0) t = 0;
+  const m = Math.floor(t / 60);
+  const s = t - m * 60;
+  return `${m}:${s.toFixed(1).padStart(4, '0')}`;
+}
+
+const logEl = $('#log');
+const S = {
+  job: null, stages: {}, list: [], live: false, finished: true, es: null, lastIndex: -1, lastTs: 0,
+  dirty: new Set(), raf: 0, replaying: false, open: new Set(), status: null,
+};
+
+// ---------------------------------------------------------------- chọn biến thể
+function options() {
+  const llm = document.querySelector('input[name=llm]:checked').value;
+  const b = $('#budget').value.trim();
+  return { d1: $('#d1').checked, d2: $('#d2').checked, d3: $('#d3').checked, live_llm: llm === 'live', budget: b === '' ? null : Number(b) };
+}
+function syncPresets() {
+  const o = options();
+  const key = `${+o.d1}${+o.d2}${+o.d3}`;
+  document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('on', b.dataset.p === key));
+  if (!S.job) renderIntro();
+}
+document.querySelectorAll('#presets button').forEach(b => b.addEventListener('click', () => {
+  const p = b.dataset.p;
+  $('#d1').checked = p[0] === '1'; $('#d2').checked = p[1] === '1'; $('#d3').checked = p[2] === '1';
+  syncPresets();
+}));
+['#d1', '#d2', '#d3'].forEach(id => $(id).addEventListener('change', syncPresets));
+document.querySelectorAll('input[name=llm]').forEach(r => r.addEventListener('change', syncPresets));
+
+function planStages(o) {
+  const st = [{ title: 'Sinh prompt nén', ref: '§3', tags: o.d1 ? ['D1'] : [] }, { title: 'Gọi LLM k = 5 lần', ref: 'Alg. 1', tags: [] }];
+  if (o.d3) st.push({ title: 'Kiểm định cấu hình', ref: 'D3', tags: ['D3'] });
+  st.push({ title: 'Chọn cấu hình tốt nhất', ref: 'Alg. 2–4', tags: [] });
+  if (o.d2) {
+    st.push({ title: 'Đo lại cấu hình tốt nhất bằng EXPLAIN ANALYZE', ref: 'D2', tags: ['D2'] });
+    st.push({ title: 'Gọi LLM k₂ = 3 lần với prompt phản hồi', ref: 'D2', tags: ['D2'] });
+    if (o.d3) st.push({ title: 'Kiểm định cấu hình mới', ref: 'D3', tags: ['D3'] });
+    st.push({ title: 'Chấm cấu hình mới với incumbent', ref: 'Alg. 2 + D2', tags: ['D2'] });
+  }
+  st.push({ title: 'Kết quả', ref: '', tags: [] });
+  return st;
+}
+const tagHtml = tags => (tags || []).map(t => `<span class="tag ${t}">${t}</span>`).join(' ');
+
+function renderIntro() {
+  const o = options();
+  const est = (o.d2 ? (o.d1 ? '≈ 3 phút' : '≈ 2,5 phút') : '≈ 1,5 phút') + (o.live_llm ? ' + thời gian gọi LLM' : '');
+  $('#stages').innerHTML = `<section class="intro">
+    <h2>Các bước <small>${est}</small></h2>
+    <ol>${planStages(o).map(s => `<li>${esc(s.title)} <span class="ref">${esc(s.ref)}</span> ${tagHtml(s.tags)}</li>`).join('')}</ol>
+  </section>`;
+}
+
+// ---------------------------------------------------------------- khung các bước
+function buildFlow(stages) {
+  const root = $('#stages');
+  root.innerHTML = '';
+  S.stages = {}; S.list = [];
+  stages.forEach((s, i) => {
+    const el = document.createElement('section');
+    el.className = 'stage wait';
+    el.id = 'st-' + s.id;
+    el.innerHTML = `<header><span class="n">${i + 1}</span><h2>${esc(s.title)}</h2><span class="ref">${esc(s.ref)}</span>${tagHtml(s.tags)}<span class="st">chờ</span></header>
+      <div class="body"><div class="content"></div></div>`;
+    root.appendChild(el);
+    const st = { ...s, el, status: 'wait', t0: null, t1: null, data: initData(s.kind) };
+    S.stages[s.id] = st;
+    S.list.push(st);
+  });
+}
+function initData(kind) {
+  if (kind === 'prompt') return { explains: {}, pairs: null, compress: null, filters: null, prompt: null, machine: null };
+  if (kind === 'llm') return { responses: [], calling: null, saved: null, configs: null };
+  if (kind === 'd3') return { configs: null };
+  if (kind === 'select') return { sel: null, built: false };
+  if (kind === 'feedback') return { fb: null, analyze: {}, apply: null, ix: [], final: null };
+  return { r: null };
+}
+
+// ---------------------------------------------------------------- nhận sự kiện
+const RUN_LEVEL = new Set(['run_start', 'run_end', 'stage', 'error']);
+function handle(ev) {
+  S.lastTs = ev.ts;
+  if (ev.text != null) consoleLine(ev);
+  const fn = H[ev.type];
+  const st = ev.stage ? S.stages[ev.stage] : null;
+  if (fn && (st || RUN_LEVEL.has(ev.type))) fn(ev, st);
+  if (st) markDirty(st.id);
+}
+function markDirty(id) {
+  S.dirty.add(id);
+  if (S.replaying || S.raf) return;
+  S.raf = requestAnimationFrame(flush);
+}
+function flush() {
+  S.raf = 0;
+  for (const id of S.dirty) { const st = S.stages[id]; if (st) renderStage(st); }
+  S.dirty.clear();
+}
+function nowTs() {
+  if (S.job && S.live && !S.finished) return Date.now() / 1000 - S.job.epoch;
+  return S.lastTs;
+}
+const lastOpen = (segs, kind) => { for (let i = segs.length - 1; i >= 0; i--) if (segs[i].kind === kind && segs[i].b == null) return segs[i]; return null; };
+
+const H = {};
+H.run_start = ev => {
+  S.job = ev; S.finished = false; S.open = new Set();
+  // các ô chọn hiện đúng biến thể của lần chạy đang xem
+  const o = ev.options;
+  $('#d1').checked = o.d1; $('#d2').checked = o.d2; $('#d3').checked = o.d3;
+  document.querySelector(`input[name=llm][value=${o.live_llm ? 'live' : 'saved'}]`).checked = true;
+  $('#budget').value = o.budget == null ? '' : o.budget;
+  syncPresets();
+  logEl.innerHTML = '';
+  stick = true;
+  $('#logpath').textContent = ev.folder + '/log.txt';
+  $('#banner').innerHTML = S.live ? '' : `<div class="banner">Xem lại · <code>${esc(ev.folder)}/</code></div>`;
+  buildFlow(ev.stages);
+};
+H.stage = ev => {
+  const st = S.stages[ev.id];
+  if (!st) return;
+  if (ev.status === 'start') {
+    st.status = 'run'; st.t0 = ev.ts;
+    if (S.live && !S.replaying && $('#follow').checked) setTimeout(() => st.el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+  } else { st.status = 'done'; st.t1 = ev.ts; }
+  markDirty(st.id);
+};
+H.error = (ev, st) => {
+  $('#banner').innerHTML = `<div class="banner err"><b>Lỗi:</b> ${esc(ev.message || ev.text)}</div>`;
+  if (st) st.data.error = ev.message || ev.text;
+};
+H.run_end = ev => {
+  S.finished = true;
+  for (const st of S.list) {
+    if (st.status === 'run') { st.status = ev.status === 'done' ? 'done' : ev.status; st.t1 = ev.ts; }
+    else if (st.status === 'wait' && ev.status !== 'done') st.status = 'skipped';
+    markDirty(st.id);
+  }
+  if (S.live) { $('#clock').textContent = ev.status === 'done' ? `xong sau ${clock(ev.ts)}` : (ev.status === 'stopped' ? 'đã dừng' : 'lỗi'); refreshStatus(); refreshRuns(); }
+  setRunning(false);
+};
+H.machine = (ev, st) => { st.data.machine = ev; };
+H.explain = (ev, st) => { st.data.explains[ev.q] = ev.cost; };
+H.join_values = (ev, st) => { st.data.pairs = ev.pairs; };
+H.filters = (ev, st) => { st.data.filters = ev; };
+H.compress = (ev, st) => { st.data.compress = ev; };
+H.prompt = (ev, st) => { st.data.prompt = ev; };
+H.llm_saved = (ev, st) => { st.data.saved = ev; };
+H.llm_call = (ev, st) => { st.data.calling = ev; };
+H.llm_response = (ev, st) => { st.data.calling = null; st.data.responses.push(ev); };
+H.configs = (ev, st) => { st.data.configs = ev; };
+
+H.select_start = (ev, st) => {
+  const meta = {};
+  for (const n of ev.order) meta[n] = { done: 0, time: 0, updates: 0, state: 'idle' };
+  const s = {
+    start: ev.ts, end: null, names: ev.order, cfg: ev.configs, alpha: ev.alpha, t0: ev.t0, incumbent: ev.incumbent,
+    total: ev.total, official: ev.official, evals: [], skips: [], narr: [], cur: null, pending: null, final: null,
+    phase: ev.incumbent ? 2 : 1, u: 0, meta,
+    best: ev.incumbent ? { time: ev.incumbent.time, config: ev.incumbent.config } : { time: null, config: null },
+  };
+  if (ev.incumbent) s.narr.push({ ts: 0, cls: 'info', text: `Đã có incumbent b = <b>${esc(ev.incumbent.config)}</b> với C_b = ${sec(ev.incumbent.time)}, nên best bắt đầu bằng C_b và các vòng (dòng 6–13) được bỏ qua. Mỗi cấu hình mới chạy đúng một lượt với timeout = best.` });
+  else s.narr.push({ ts: 0, cls: 'info', text: `Vòng 1: mỗi cấu hình được chạy tối đa t = ${sec(ev.t0, 0)}, cấu hình đã xong nhiều truy vấn hơn được chạy trước.` });
+  st.data.sel = s;
+};
+H.eval_start = (ev, st) => {
+  const s = st.data.sel;
+  if (!s) return;
+  const k = s.names.length;
+  let phase;
+  if (s.phase === 1) phase = `Vòng ${Math.floor(s.u / k) + 1}`;
+  else phase = s.incumbent ? 'D2 · một lượt mỗi cấu hình' : 'Dòng 14–15 · một lượt mỗi cấu hình';
+  const e = { config: ev.config, t: ev.t, start: ev.ts, end: null, before: ev.completed, timeBefore: ev.time_before, order: null, needs: {}, indexes: {}, groups: 0, segs: [], q: {}, made: {}, cutQ: null, used: 0, phase, runningQ: null, applying: null, errors: [] };
+  s.evals.push(e); s.cur = e; s.pending = e;
+  s.meta[ev.config].state = 'run';
+};
+H.order = (ev, st) => {
+  const e = st.data.sel && st.data.sel.cur;
+  if (!e) return;
+  e.order = ev.order; e.needs = ev.needs; e.indexes = ev.indexes; e.groups = ev.groups;
+};
+H.config_apply = (ev, st) => {
+  if (st.kind === 'select') {
+    const e = st.data.sel && st.data.sel.cur;
+    if (!e) return;
+    e.segs.push({ kind: 'restart', a: ev.ts, b: null });
+    e.applying = ev.settings.length;
+  } else if (st.kind === 'feedback' && !st.data.apply) st.data.apply = { a: ev.ts, n: ev.settings.length, b: null };
+};
+H.config_applied = (ev, st) => {
+  if (st.kind === 'select') {
+    const e = st.data.sel && st.data.sel.cur;
+    if (!e) return;
+    const sg = lastOpen(e.segs, 'restart');
+    if (sg) sg.b = ev.ts;
+    e.applying = null; e.errors = ev.errors || [];
+  } else if (st.kind === 'feedback' && st.data.apply && st.data.apply.b == null) {
+    Object.assign(st.data.apply, { b: ev.ts, sec: ev.sec, errors: ev.errors || [] });
+  }
+};
+H.index_start = (ev, st) => {
+  if (st.kind !== 'select') return;
+  const e = st.data.sel && st.data.sel.cur;
+  if (e) e.segs.push({ kind: 'index', a: ev.ts, b: null, sql: ev.sql });
+};
+H.index_end = (ev, st) => {
+  if (st.kind === 'feedback') { st.data.ix.push(ev); return; }
+  if (st.kind !== 'select') return;
+  const e = st.data.sel && st.data.sel.cur;
+  if (!e) return;
+  const sg = lastOpen(e.segs, 'index');
+  if (sg) { sg.b = ev.ts; sg.ok = ev.ok; }
+  e.made[ev.sql] = { sec: ev.sec, ok: ev.ok };
+};
+H.query_start = (ev, st) => {
+  const e = st.kind === 'select' && st.data.sel && st.data.sel.cur;
+  if (!e) return;
+  const sg = { kind: 'query', a: ev.ts, b: null, q: ev.q, ok: null };
+  e.segs.push(sg); e.runningQ = sg; e.q[ev.q] = { state: 'run' };
+};
+H.query_end = (ev, st) => {
+  const e = st.kind === 'select' && st.data.sel && st.data.sel.cur;
+  if (!e) return;
+  if (e.runningQ) { e.runningQ.b = ev.ts; e.runningQ.ok = ev.ok; }
+  e.runningQ = null;
+  e.q[ev.q] = { state: ev.ok ? 'ok' : 'cut', sec: ev.sec };
+  if (ev.ok) e.used += ev.sec; else { e.cutQ = ev.q; e.used = e.t; }
+};
+H.eval_end = (ev, st) => {
+  const s = st.data.sel;
+  const e = s && s.cur;
+  if (!e) return;
+  Object.assign(e, { end: ev.ts, done: ev.done, complete: ev.complete, time: ev.time, indexTime: ev.index_time });
+  s.cur = null;
+  Object.assign(s.meta[e.config], { done: ev.done, time: ev.time, state: ev.complete ? 'complete' : 'cut' });
+};
+H.update = (ev, st) => {
+  const s = st.data.sel;
+  if (!s) return;
+  const e = s.pending;
+  s.pending = null;
+  const k = s.names.length, total = ev.total, c = `<b>${esc(ev.config)}</b>`;
+  const prevBest = s.best.time;
+  const m = s.meta[ev.config];
+  m.updates += 1; m.done = ev.done;
+  // best mới: lượt này chạy xong cả workload và tổng thời gian nhỏ hơn best (so số đo chính xác, không dùng số đã làm
+  // tròn trong dòng log)
+  const isNewBest = e != null && e.complete && (prevBest == null || e.time < prevBest);
+  let text, cls = '';
+  if (s.phase === 1) {
+    s.u += 1;
+    const round = Math.floor((s.u - 1) / k) + 1;
+    if (ev.done === total) {
+      text = `Vòng ${round}: ${c} chạy xong cả ${total} truy vấn, tổng ${sec(e && e.time)} → <b>best đầu tiên</b>. Dừng các vòng (dòng 6–13); mỗi cấu hình còn lại được thêm một lượt với timeout = best − thời gian nó đã dùng (dòng 14–15).`;
+      cls = 'best'; s.phase = 2;
+    } else {
+      const cut = e && e.cutQ ? `, bị ngắt ở ${e.cutQ}` : '';
+      text = `Vòng ${round}: ${c} với t = ${sec(ev.timeout)} xong ${ev.done}/${total} truy vấn${cut}.`;
+      if (e && e.indexTime > ev.timeout) text += ` Tạo chỉ mục mất ${sec(e.indexTime)} > t, nên t được nâng lên bằng mức đó (dòng 12).`;
+      if (s.u % k === 0) text += ` Hết vòng ${round} mà chưa cấu hình nào xong cả workload → vòng sau t nhân α = ${s.alpha}.`;
+      cls = 'cut';
+    }
+  } else {
+    const spent = e ? e.timeBefore : prevBest - ev.timeout;
+    const expr = spent > 0.005 ? `best − ${num(spent)} = ${num(ev.timeout)} s` : `best = ${num(ev.timeout)} s`;
+    if (!e) {
+      text = `${c} đã dùng ${sec(spent)} cho ${ev.done} truy vấn ở lượt trước; timeout = ${expr} ≤ 0, chắc chắn không nhanh hơn best → <b>bỏ qua</b>, không phải chạy.`;
+      cls = 'skip'; s.skips.push({ config: ev.config, ts: ev.ts }); m.state = 'skip';
+    } else if (isNewBest) {
+      text = `${c}: timeout = ${expr}; xong ${total}/${total}, tổng ${sec(e.time)} &lt; ${sec(prevBest)} → <b>best mới</b>.`;
+      cls = 'best';
+    } else if (ev.done === total) {
+      text = `${c}: xong ${total}/${total}, tổng ${sec(e.time)}, không nhanh hơn best ${sec(prevBest)}.`;
+    } else {
+      text = `${c}: timeout = ${expr}; bị ngắt ở ${e.cutQ || '…'} sau ${ev.done}/${total} truy vấn → không thể nhanh hơn best ${sec(prevBest)}, loại.`;
+      cls = 'cut';
+    }
+  }
+  if (isNewBest) { s.best = { time: e.time, config: ev.config }; e.newBest = true; }
+  s.narr.push({ ts: ev.ts - s.start, text, cls });
+};
+H.select_end = (ev, st) => {
+  const s = st.data.sel;
+  if (!s) return;
+  s.end = ev.ts; s.final = ev;
+  let text = `Kết thúc: best = <b>${esc(ev.best)}</b> (${sec(ev.best_time)}), thời gian chọn ${sec(ev.sec, 0)}.`;
+  if (s.incumbent && ev.best === s.incumbent.config) text += ' Không cấu hình mới nào nhanh hơn C_b nên giữ b.';
+  s.narr.push({ ts: ev.ts - s.start, text, cls: 'info' });
+};
+H.feedback_start = (ev, st) => { st.data.fb = ev; };
+H.analyze_start = (ev, st) => { st.data.analyze[ev.q] = { state: 'run', a: ev.ts }; };
+H.analyze_end = (ev, st) => { st.data.analyze[ev.q] = { state: ev.ok ? 'ok' : 'cut', sec: ev.sec, top: ev.top }; };
+H.feedback = (ev, st) => { st.data.final = ev; };
+H.result = (ev, st) => { st.data.r = ev; };
+
+// ---------------------------------------------------------------- vẽ từng bước
+function statusLabel(st) {
+  if (st.status === 'wait') return 'chờ';
+  if (st.status === 'skipped') return 'không chạy';
+  if (st.status === 'run') return `đang chạy · ${clock(nowTs() - st.t0)}`;
+  if (st.status === 'done') return `xong · ${sec(st.t1 - st.t0, 1)}`;
+  if (st.status === 'stopped') return 'đã dừng';
+  return 'lỗi';
+}
+function renderStage(st) {
+  st.el.className = `stage ${st.status}`;
+  $('.st', st.el).textContent = statusLabel(st);
+  if (st.status === 'wait' || st.status === 'skipped') return;
+  const c = $('.content', st.el);
+  R[st.kind](st, c);
+  if (st.data.error && !c.querySelector('.errbox')) c.insertAdjacentHTML('beforeend', `<div class="errbox">${esc(st.data.error)}</div>`);
+}
+const R = {};
+const det = (key, summary, body) => `<details data-key="${esc(key)}" ${S.open.has(key) ? 'open' : ''}><summary>${summary}</summary>${body}</details>`;
+document.addEventListener('toggle', e => {
+  const k = e.target.dataset && e.target.dataset.key;
+  if (!k) return;
+  if (e.target.open) S.open.add(k); else S.open.delete(k);
+}, true);
+
+function promptHtml(text) {
+  const lines = text.split('\n');
+  let mode = '';
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l.trim() === '') { mode = ''; out.push(''); continue; }
+    if (l.startsWith('Each row') && (lines[i + 1] || '').startsWith('{a column C}')) mode = 'd1';
+    if (l.startsWith('Table sizes:')) mode = 'd1';
+    let cls = mode;
+    if (!cls && /^\w+\.\w+: /.test(l)) cls = 'jl';
+    if (/^(memory|cores): /.test(l)) cls = 'spec';
+    out.push(`<span class="${cls}">${esc(l)}</span>`);
+  }
+  return out.join('\n');
+}
+
+R.prompt = (st, c) => {
+  const d = st.data;
+  const qs = S.job.queries;
+  let h = '';
+  if (d.machine) h += `<div>Máy chạy PostgreSQL: <b>${d.machine.memory}GB RAM, ${d.machine.cores} nhân</b></div>`;
+  h += `<h3>EXPLAIN ${qs.length} truy vấn</h3><div class="qgrid">`;
+  h += qs.map(q => { const v = d.explains[q]; return `<span class="qc ${v == null ? '' : 'ok'}">${q}<small>${v == null ? '' : compact(v)}</small></span>`; }).join('') + '</div>';
+  if (d.pairs) {
+    const kept = new Set(((d.compress && d.compress.kept_pairs) || []).map(p => p.join('|')));
+    const max = d.pairs.length ? d.pairs[0].v : 1;
+    h += `<h3>V(p) của các cặp cột join</h3><table class="bars"><tr><th>Cặp cột join p</th><th></th><th class="num">V(p)</th><th>ILP</th></tr>`;
+    for (const p of d.pairs) {
+      const on = kept.has(p.a + '|' + p.b);
+      const mark = d.compress ? (on ? '<span class="pill ok">vào prompt</span>' : '<span class="pill skip">bỏ</span>') : '';
+      h += `<tr class="${d.compress && !on ? 'dim' : ''}"><td class="mono">${esc(p.a)} ⋈ ${esc(p.b)}</td><td class="barcell"><span class="bar" style="width:${(p.v / max * 100).toFixed(1)}%"></span></td><td class="num">${compact(p.v)}</td><td>${mark}</td></tr>`;
+    }
+    h += '</table>';
+  }
+  if (d.filters) {
+    const kept = new Set((d.compress && d.compress.kept_filters) || []);
+    const max = d.filters.filters.length ? d.filters.filters[0].v : 1;
+    h += `<h3><span class="tag D1">D1</span> V(f) của các snippet vị từ lọc</h3><table class="bars"><tr><th>Snippet</th><th></th><th class="num">V(f)</th><th>ILP</th></tr>`;
+    for (const f of d.filters.filters) {
+      const on = kept.has(f.f);
+      const mark = d.compress ? (on ? '<span class="pill ok">vào prompt</span>' : '<span class="pill skip">bỏ</span>') : '';
+      h += `<tr class="${d.compress && !on ? 'dim' : ''}"><td class="mono">${esc(f.line)}</td><td class="barcell"><span class="bar d1" style="width:${(f.v / max * 100).toFixed(1)}%"></span></td><td class="num">${compact(f.v)}</td><td>${mark}</td></tr>`;
+    }
+    h += '</table>';
+  }
+  if (d.compress) {
+    const cp = d.compress;
+    h += `<h3>ILP (Bảng 1)</h3><div>Chọn <b>${cp.kept_pairs.length}</b> cặp, giữ <b>${Math.round(cp.value / cp.total * 100)}%</b> tổng V(p), ${cp.tokens} token (B = ${cp.budget == null ? '∞' : cp.budget})</div>`;
+  }
+  if (d.prompt) {
+    const p = d.prompt;
+    h += `<div class="tiles"><div class="tile good"><div class="k">Prompt</div><div class="v">${p.tokens} <small>token</small></div></div><div class="tile"><div class="k">Nguyên văn 22 truy vấn SQL</div><div class="v">${p.sql_tokens.toLocaleString('vi')} <small>token</small></div></div><div class="tile"><div class="k">Gọn hơn</div><div class="v">${num(p.sql_tokens / p.tokens, 1)}×</div></div></div>`;
+    h += `<h3>Prompt gửi LLM ${p.same_as_official ? `<span class="pill ok">trùng ${esc(p.official_file)}</span>` : ''}</h3><pre class="prompt">${promptHtml(p.prompt)}</pre>`;
+  }
+  c.innerHTML = h;
+};
+
+function countList(list) {
+  const counts = new Map();
+  for (const x of list) counts.set(x, (counts.get(x) || 0) + 1);
+  return [...counts].map(([x, n]) => esc(x) + (n > 1 ? `   ×${n}` : '')).join('\n');
+}
+function cardHtml(st, r) {
+  const src = r.source === 'saved' ? '<span class="pill saved">đã lưu</span>' : `<span class="pill live">gọi thật · ${sec(r.sec, 1)}</span>`;
+  let warn = '';
+  if (r.settings.length > 2 * r.unique_settings) warn += `<div class="warnbox">Phản hồi lặp: ${r.settings.length} lệnh SET nhưng chỉ ${r.unique_settings} lệnh khác nhau</div>`;
+  if (r.indexes.length === 0) warn += '<div class="warnbox">Không đề xuất chỉ mục nào</div>';
+  const cmds = countList(r.settings) + (r.indexes.length ? '\n\n' + r.indexes.map(esc).join('\n') : '');
+  return `<div class="card"><div class="ch"><b class="mono">${esc(r.name)}</b>${src}</div>
+    <div class="stats"><span><b>${r.unique_settings}</b> tham số</span><span><b>${r.indexes.length}</b> chỉ mục</span><span>${r.chars.toLocaleString('vi')} ký tự</span></div>${warn}
+    ${det(`${st.id}:${r.name}:cmd`, 'Các lệnh', `<pre class="cmds">${cmds}</pre>`)}
+    ${det(`${st.id}:${r.name}:raw`, 'Nguyên văn phản hồi', `<pre class="cmds">${esc(r.raw)}</pre>`)}</div>`;
+}
+R.llm = (st, c) => {
+  const d = st.data;
+  let h = '';
+  if (d.saved) {
+    const model = d.responses.length ? d.responses[0].model : '';
+    h += `<div class="legend" style="margin-bottom:8px"><span>${esc(model)} · <code>${esc(d.saved.folder)}/</code></span></div>`;
+  }
+  h += '<div class="cards">' + d.responses.map(r => cardHtml(st, r)).join('');
+  if (d.calling) h += `<div class="card calling"><div class="ch"><b>lần ${d.calling.i}/${d.calling.k}</b><span class="pill live">đang gọi</span></div><div class="stats">${esc(d.calling.model)} · <span data-since="${d.calling.ts}"></span></div></div>`;
+  h += '</div>';
+  c.innerHTML = h;
+};
+
+const KINDS = [
+  ['unknown parameter', 'tham số không tồn tại', 'k-unknown'],
+  ['parameter not allowed', 'tham số bị cấm', 'k-deny'],
+  ['invalid value', 'giá trị không hợp lệ', 'k-invalid'],
+  ['clamped', 'kẹp theo RAM / số nhân', 'k-clamp'],
+  ['duplicate parameter', 'đặt trùng', 'k-dup'],
+  ['index on a missing', 'chỉ mục trên bảng / cột không có', 'k-missing'],
+  ['redundant index', 'chỉ mục thừa', 'k-redundant'],
+  ['unparsed command', 'lệnh không đọc được', 'k-invalid'],
+];
+const kindOf = p => KINDS.find(k => p.startsWith(k[0])) || ['', 'khác', 'k-dup'];
+R.d3 = (st, c) => {
+  const d = st.data.configs;
+  if (!d) { c.innerHTML = '<div class="empty">Đang kiểm định…</div>'; return; }
+  const llm = S.stages[st.id === 'd3' ? 'llm' : 'llm2'];
+  const raw = {};
+  if (llm) for (const r of llm.data.responses) raw[r.name] = r;
+  const totals = new Map();
+  let h = '<table><tr><th>Cấu hình</th><th class="num">Tham số (LLM → giữ)</th><th class="num">Chỉ mục (LLM → giữ)</th><th>Bị loại / kẹp</th></tr>';
+  for (const [name, cfg] of Object.entries(d.configs)) {
+    const r = raw[name];
+    const byKind = new Map();
+    for (const p of cfg.rejected) { const k = kindOf(p); byKind.set(k, (byKind.get(k) || 0) + 1); totals.set(k, (totals.get(k) || 0) + 1); }
+    const chips = [...byKind].map(([k, n]) => `<span class="kind ${k[2]}">${n} ${k[1]}</span>`).join(' ') || '<span class="pill ok">sạch</span>';
+    const list = cfg.rejected.length ? det(`${st.id}:${name}:rej`, `${cfg.rejected.length} lệnh`, `<ul class="problems">${cfg.rejected.map(p => `<li class="${kindOf(p)[2]}"><span class="mono">${esc(p)}</span></li>`).join('')}</ul>`) : '';
+    h += `<tr><td class="mono">${esc(name)}</td><td class="num">${r ? r.unique_settings : '?'} → <b>${cfg.settings.length}</b></td><td class="num">${r ? r.indexes.length : '?'} → <b>${cfg.indexes.length}</b></td><td><div class="kinds">${chips}</div>${list}</td></tr>`;
+  }
+  h += '</table>';
+  const sum = [...totals].map(([k, n]) => `<span class="kind ${k[2]}">${n} ${k[1]}</span>`).join(' ');
+  c.innerHTML = `<div class="kinds" style="margin-bottom:8px">${sum || '<span class="pill ok">không có lệnh nào bị loại</span>'}</div>` + h;
+};
+
+// Alg. 2-4
+function niceStep(span) {
+  for (const s of [1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600]) if (span / s <= 8) return s;
+  return 1200;
+}
+function ganttSvg(s, width) {
+  const W = Math.max(width || 0, 420);
+  const L = 104, Rm = 26, T = 24, rowH = 30, B = 6;
+  const H = T + s.names.length * rowH + B;
+  const tNow = s.end != null ? s.end : Math.max(nowTs(), S.lastTs);
+  const span = Math.max(tNow - s.start, 1);
+  const step = niceStep(span);
+  const xmax = Math.max(Math.ceil(span / step) * step, step);
+  const X = t => L + Math.max(0, t - s.start) / xmax * (W - L - Rm);
+  let g = '';
+  for (let v = 0; v <= xmax + 1e-9; v += step) {
+    const x = X(s.start + v).toFixed(1);
+    g += `<line class="grid" x1="${x}" x2="${x}" y1="${T - 6}" y2="${H - B}"/><text class="tick" x="${x}" y="${T - 10}" text-anchor="middle">${v} s</text>`;
+  }
+  s.names.forEach((n, i) => {
+    const y = T + i * rowH;
+    const best = s.best.config === n;
+    g += `<text class="rowlabel ${best ? 'best' : ''}" x="${L - 10}" y="${y + rowH / 2 + 4}" text-anchor="end">${best ? '★ ' : ''}${esc(n)}</text><line class="rowline" x1="${L}" x2="${W - Rm}" y1="${y + rowH}" y2="${y + rowH}"/>`;
+  });
+  for (const e of s.evals) {
+    const i = s.names.indexOf(e.config);
+    if (i < 0) continue;
+    const y = T + i * rowH + 5, h = rowH - 10;
+    const end = e.end != null ? e.end : tNow;
+    g += `<rect class="ev" x="${X(e.start).toFixed(1)}" y="${y - 1}" width="${Math.max(X(end) - X(e.start), 1).toFixed(1)}" height="${h + 2}" rx="3"/>`;
+    for (const sg of e.segs) {
+      const b = sg.b != null ? sg.b : end;
+      const cls = sg.kind === 'query' ? (sg.b == null ? 'run' : sg.ok ? 'ok' : 'cut') : sg.kind;
+      const label = sg.kind === 'query' ? `${sg.q}: ${sec(b - sg.a)}${sg.ok === false ? ' (bị ngắt)' : ''}` : sg.kind === 'index' ? `${sg.sql}: ${sec(b - sg.a)}` : `khởi động lại PostgreSQL: ${sec(b - sg.a)}`;
+      g += `<rect class="sg ${cls}" x="${X(sg.a).toFixed(1)}" y="${y}" width="${Math.max(X(b) - X(sg.a), 1).toFixed(1)}" height="${h}"><title>${esc(label)}</title></rect>`;
+    }
+    if (e.newBest) g += `<text class="star" x="${(X(end) + 3).toFixed(1)}" y="${y + h - 3}">★</text>`;
+  }
+  for (const k of s.skips) {
+    const i = s.names.indexOf(k.config);
+    if (i < 0) continue;
+    const y = T + i * rowH + rowH / 2, x = X(k.ts).toFixed(1);
+    g += `<g class="skipmark"><line x1="${x}" x2="${x}" y1="${y - 8}" y2="${y + 8}"/><text x="${(+x + 5).toFixed(1)}" y="${y + 4}">bỏ qua</text></g>`;
+  }
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Dòng thời gian các lượt đánh giá">${g}</svg>`;
+}
+const LEGEND = `<div class="legend"><span><i style="background:var(--restart)"></i>đổi tham số + khởi động lại</span><span><i style="background:var(--idx)"></i>tạo chỉ mục</span><span><i style="background:var(--ok)"></i>truy vấn xong</span><span><i style="background:var(--cut)"></i>truy vấn bị ngắt (hết timeout)</span><span>★ best mới</span></div>`;
+
+function lazyPlan(e) {
+  const made = new Set();
+  const plan = [];
+  for (const q of e.order || []) {
+    for (const sql of e.needs[q] || []) {
+      if (made.has(sql)) continue;
+      made.add(sql);
+      plan.push({ q, sql });
+    }
+  }
+  return plan;
+}
+function curHtml(s) {
+  const e = s.cur || s.evals[s.evals.length - 1];
+  if (!e) return '<div class="empty">Chưa có lượt đánh giá nào.</div>';
+  const running = e.end == null && s.cur === e;
+  const rq = running && e.runningQ ? Math.max(0, nowTs() - e.runningQ.a) : 0;
+  const used = Math.min(e.used + rq, Math.max(e.t, 0));
+  const pct = e.t > 0 ? Math.min(100, used / e.t * 100) : 0;
+  let h = `<div class="title"><span>${running ? 'Đang đánh giá' : 'Lượt vừa xong'}: <b class="mono">${esc(e.config)}</b></span><span>${esc(e.phase)}</span><span>timeout t = <b>${sec(e.t)}</b></span>`;
+  if (running && e.applying != null) h += `<span style="color:var(--restart)">đang áp dụng ${e.applying} tham số và khởi động lại PostgreSQL…</span>`;
+  h += `</div><div class="budget ${e.cutQ ? 'over' : ''}"><span style="width:${pct.toFixed(1)}%"></span></div><div class="legend"><span>${num(used)} / ${num(e.t)} s</span></div>`;
+  const plan = lazyPlan(e);
+  const before = {};
+  for (const p of plan) (before[p.q] = before[p.q] || []).push(p.sql);
+  h += '<h3>Thứ tự chạy (Alg. 4) <small>' + (e.order ? `${e.order.length} truy vấn · ${e.groups} nhóm` : 'đang tính…') + '</small></h3><div class="qgrid">';
+  for (const q of e.before) h += `<span class="qc prev" title="đã xong ở lượt trước">${q}<small>✓</small></span>`;
+  for (const q of e.order || []) {
+    const info = e.q[q];
+    const state = info ? info.state : (e.end != null ? 'never' : '');
+    const n = (before[q] || []).length;
+    const ix = n ? `<i class="ix" title="${esc((before[q] || []).map(x => (e.indexes[x] || {}).label).join(', '))}">+${n}</i>` : '';
+    h += `<span class="qc ${state}">${q}${ix}<small>${info && info.sec != null ? num(info.sec) : ''}</small></span>`;
+  }
+  h += '</div>';
+  if (e.order) {
+    if (plan.length === 0) h += '<div class="legend" style="margin-top:6px">Cấu hình này không có chỉ mục nào có ích cho các truy vấn còn lại.</div>';
+    else h += '<ul class="lazy">' + plan.map(p => { const ix = e.indexes[p.sql] || {}; const m = e.made[p.sql]; return `<li class="${m ? 'made' : ''}">${esc(ix.label)} <small>trước ${p.q} · ${compact(ix.cost)} dòng${m ? ' · tạo ' + sec(m.sec) : ''}</small></li>`; }).join('') + '</ul>';
+  }
+  if (e.errors && e.errors.length) h += `<div class="warnbox">PostgreSQL từ chối ${e.errors.length} lệnh: ${esc(e.errors.slice(0, 3).join(' · '))}${e.errors.length > 3 ? ' …' : ''}</div>`;
+  return h;
+}
+function metricsHtml(s) {
+  const now = s.end != null ? s.end : nowTs();
+  const k = s.names.length;
+  let phase = 'Xong';
+  if (s.end == null) phase = s.cur ? s.cur.phase : (s.phase === 1 ? `Vòng ${Math.floor(s.u / k) + 1}` : (s.incumbent ? 'D2 · một lượt' : 'Dòng 14–15'));
+  let h = `<div class="tiles"><div class="tile"><div class="k">Giai đoạn</div><div class="v" style="font-size:16px">${esc(phase)}</div></div>`;
+  h += `<div class="tile"><div class="k">Timeout lượt hiện tại</div><div class="v">${s.cur ? sec(s.cur.t) : '—'}</div></div>`;
+  h += `<div class="tile ${s.best.time != null ? 'good' : ''}"><div class="k">Best${s.best.config ? ' · ' + esc(s.best.config) : ''}</div><div class="v">${s.best.time != null ? sec(s.best.time) : 'chưa có'}</div></div>`;
+  h += `<div class="tile"><div class="k">Thời gian chọn</div><div class="v">${sec(now - s.start, 1)}</div></div></div>`;
+  return h;
+}
+const STATE = { idle: 'chưa chạy', run: 'đang chạy', complete: 'xong hết', cut: 'bị ngắt', skip: 'bỏ qua' };
+function metaHtml(s) {
+  let h = '<table><tr><th>Cấu hình</th><th class="num">Tham số</th><th class="num">Chỉ mục</th><th class="num">Xong</th><th class="num">Thời gian</th><th>Trạng thái</th></tr>';
+  if (s.incumbent) h += `<tr class="${s.best.config === s.incumbent.config ? 'best' : ''}"><td>${s.best.config === s.incumbent.config ? '★ ' : ''}${esc(s.incumbent.config)} (b)</td><td class="num">—</td><td class="num">—</td><td class="num">${s.total}/${s.total}</td><td class="num">${sec(s.incumbent.time)}</td><td><span class="state complete">incumbent</span></td></tr>`;
+  for (const n of s.names) {
+    const m = s.meta[n], cfg = s.cfg[n] || {};
+    const best = s.best.config === n;
+    h += `<tr class="${best ? 'best' : ''}" title="${m.updates} lượt đánh giá"><td>${best ? '★ ' : ''}${esc(n)}</td><td class="num">${cfg.settings}</td><td class="num">${cfg.indexes}</td><td class="num">${m.done}/${s.total}</td><td class="num">${sec(m.time)}</td><td><span class="state ${m.state}">${STATE[m.state]}</span></td></tr>`;
+  }
+  return h + '</table>';
+}
+function narrHtml(s) {
+  return s.narr.slice().reverse().map(n => `<li class="${n.cls}"><span class="t">${num(n.ts, 1)} s</span>${n.text}</li>`).join('');
+}
+R.select = (st, c) => {
+  const s = st.data.sel;
+  if (!s) { c.innerHTML = '<div class="empty">Đang chuẩn bị…</div>'; return; }
+  if (!st.data.built) {
+    c.innerHTML = `<div class="metrics"></div><div class="gantt"></div>${LEGEND}<div class="cur"></div><div class="two"><div><h3>Diễn biến</h3><ol class="narr"></ol></div><div><h3>Bảng 2: thông tin từng cấu hình</h3><div class="meta"></div></div></div>`;
+    st.data.built = true;
+  }
+  renderSelectLive(st);
+  $('.narr', c).innerHTML = narrHtml(s);
+  $('.meta', c).innerHTML = metaHtml(s);
+};
+function renderSelectLive(st) {
+  const s = st.data.sel;
+  const c = $('.content', st.el);
+  if (!s || !st.data.built) return;
+  $('.metrics', c).innerHTML = metricsHtml(s);
+  const g = $('.gantt', c);
+  g.innerHTML = ganttSvg(s, g.clientWidth);
+  $('.cur', c).innerHTML = curHtml(s);
+}
+
+function feedbackPromptHtml(text) {
+  return text.split('\n').map(l => {
+    let cls = '';
+    if (/^- q\d+/.test(l)) cls = 'slowl';
+    else if (/^(ALTER SYSTEM|CREATE)/i.test(l)) cls = 'cmd';
+    return `<span class="${cls}">${esc(l)}</span>`;
+  }).join('\n');
+}
+R.feedback = (st, c) => {
+  const d = st.data;
+  if (!d.fb) { c.innerHTML = '<div class="empty">Đang chuẩn bị…</div>'; return; }
+  const fb = d.fb;
+  let h = `<div>b = <b class="mono">${esc(fb.best)}</b>, C_b = <b>${sec(fb.best_time)}</b> · ${fb.settings.length} tham số · ${fb.indexes.length} chỉ mục</div>`;
+  if (d.apply) {
+    const ixs = d.ix.reduce((a, x) => a + x.sec, 0);
+    h += `<div class="legend" style="margin-top:4px"><span>${d.apply.b == null ? 'đang áp dụng tham số của b và khởi động lại PostgreSQL…' : `áp dụng ${d.apply.n} tham số, khởi động lại ${sec(d.apply.sec, 1)}`}</span>${d.ix.length ? `<span>tạo sẵn ${d.ix.length} chỉ mục trong ${sec(ixs, 1)}</span>` : ''}</div>`;
+  }
+  const qs = S.job.queries;
+  const slow = new Set((d.final && d.final.slow) || []);
+  let max = 0;
+  for (const q of qs) { const a = d.analyze[q]; if (a && a.sec) max = Math.max(max, a.sec); }
+  h += `<h3>EXPLAIN ANALYZE từng truy vấn dưới b</h3><table class="bars"><tr><th>Truy vấn</th><th></th><th class="num">Thời gian</th><th>Toán tử tốn thời gian nhất</th></tr>`;
+  for (const q of qs) {
+    const a = d.analyze[q];
+    const w = a && a.sec != null && max > 0 ? a.sec / max * 100 : (a && a.state === 'run' ? 100 : 0);
+    const cls = !a ? '' : a.state === 'run' ? 'run' : a.state === 'cut' ? 'cut' : slow.has(q) ? 'slow' : '';
+    h += `<tr class="${slow.has(q) ? 'slow' : ''} ${!a ? 'dim' : ''}"><td class="mono">${q}</td><td class="barcell"><span class="bar ${cls}" style="width:${w.toFixed(1)}%"></span></td><td class="num">${a && a.sec != null ? sec(a.sec) : ''}</td><td class="top">${a && a.top && slow.has(q) ? esc(a.top) : ''}</td></tr>`;
+  }
+  h += '</table>';
+  if (d.final) h += `<h3>Phần ghép vào sau prompt gốc</h3><pre class="prompt">${feedbackPromptHtml(d.final.appended)}</pre>`;
+  c.innerHTML = h;
+};
+
+R.result = (st, c) => {
+  const r = st.data.r;
+  if (!r) { c.innerHTML = '<div class="empty">Đang tổng hợp…</div>'; return; }
+  let h = `<div class="tiles"><div class="tile good"><div class="k">Cấu hình được chọn</div><div class="v mono" style="font-size:18px">${esc(r.best)}</div></div>`;
+  h += `<div class="tile good"><div class="k">Thời gian workload C_best</div><div class="v">${sec(r.best_time)}</div></div>`;
+  h += `<div class="tile"><div class="k">Thời gian tuning</div><div class="v">${sec(r.tuning_time, 0)} <small>không tính gọi LLM</small></div></div>`;
+  if (r.refine) h += `<div class="tile"><div class="k">Trước vòng phản hồi D2</div><div class="v">${sec(r.base.best_time)} <small>${esc(r.base.best)}</small></div></div>`;
+  if (r.llm_time > 0) h += `<div class="tile"><div class="k">Thời gian gọi LLM</div><div class="v">${sec(r.llm_time, 0)}</div></div>`;
+  h += '</div>';
+  if (r.refine) h += `<div class="note">${r.refine.improved ? `D2 tìm được cấu hình nhanh hơn b: ${esc(r.refine.best)} (${sec(r.refine.best_time)} &lt; ${sec(r.base.best_time)})` : `D2 không tìm được cấu hình nhanh hơn b = ${esc(r.base.best)} (${sec(r.base.best_time)}), giữ b`}</div>`;
+  if (r.official) {
+    h += `<h3>So với lần chạy chính thức <small><code>${esc(r.official.file)}</code></small></h3><table><tr><th></th><th>Cấu hình</th><th class="num">C_best</th><th class="num">Thời gian tuning</th></tr>`;
+    h += `<tr><td>Lần này</td><td class="mono">${esc(r.best)}</td><td class="num">${sec(r.best_time)}</td><td class="num">${sec(r.tuning_time, 0)}</td></tr>`;
+    h += `<tr><td>Chính thức</td><td class="mono">${esc(r.official.best)}</td><td class="num">${sec(r.official.best_time)}</td><td class="num">${sec(r.official.tuning_time, 0)}</td></tr></table>`;
+  }
+  const cfg = r.best_config;
+  h += `<h3>Cấu hình được chọn</h3><pre class="cmds">${esc(cfg.settings.concat(cfg.indexes).join('\n') || '(cấu hình mặc định)')}</pre>`;
+  c.innerHTML = h;
+};
+
+// ---------------------------------------------------------------- log
+function lineClass(ev) {
+  switch (ev.type) {
+    case 'stage': return 'hd';
+    case 'update': return 'upd';
+    case 'eval_start': case 'order': return 'ev';
+    case 'query_end': return ev.ok ? 'detail ok' : 'cut';
+    case 'index_end': return ev.ok ? 'detail idx' : 'warn';
+    case 'explain': case 'analyze_end': case 'llm_response': return 'detail';
+    case 'config_apply': case 'config_applied': case 'drop_indexes': return 'detail sys';
+    case 'select_end': case 'result': case 'run_end': case 'run_start': return 'res';
+    case 'error': return 'err';
+    default: return /\[(bỏ qua|lỗi|dừng)\]/.test(ev.text) ? 'warn' : '';
+  }
+}
+let logScroll = 0;
+let stick = true;  // khung log bám đáy, trừ khi người xem cuộn lên đọc
+logEl.addEventListener('scroll', () => { stick = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 60; });
+function consoleLine(ev) {
+  const div = document.createElement('div');
+  div.className = 'ln ' + lineClass(ev);
+  div.innerHTML = `<span class="ts">${clock(ev.ts)}</span><span class="tx">${esc(ev.text)}</span>`;
+  logEl.appendChild(div);
+  if (logEl.childElementCount > 8000) logEl.firstChild.remove();
+  if (stick && !logScroll) logScroll = requestAnimationFrame(() => { logScroll = 0; logEl.scrollTop = logEl.scrollHeight; });
+}
+$('#brief').addEventListener('change', e => logEl.classList.toggle('brief', e.target.checked));
+
+// ---------------------------------------------------------------- server
+function setRunning(on) {
+  $('#run').disabled = on;
+  $('#stop').disabled = !on;
+  document.querySelectorAll('.controls input, #presets button, #runs, #load').forEach(x => { x.disabled = on; });
+  if (!on && S.status && !S.status.llm.configured) document.querySelector('input[name=llm][value=live]').disabled = true;
+}
+function connect(id, from) {
+  if (S.es) S.es.close();
+  const es = new EventSource(`/api/events?run=${encodeURIComponent(id)}&from=${from}`);
+  S.es = es;
+  es.onmessage = m => {
+    const ev = JSON.parse(m.data);
+    if (ev.i <= S.lastIndex) return;
+    S.lastIndex = ev.i;
+    handle(ev);
+  };
+  es.addEventListener('end', () => { es.close(); S.es = null; });
+}
+async function start() {
+  const body = options();
+  const r = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) { alert(j.error || 'Không chạy được'); return; }
+  S.live = true; S.lastIndex = -1; S.finished = false;
+  setRunning(true);
+  connect(j.id, 0);
+}
+async function stop() {
+  $('#stop').disabled = true;
+  await fetch('/api/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+}
+async function loadRun(id) {
+  if (!id) return;
+  if (S.status && S.status.running && S.status.current && S.status.current.id === id) {
+    S.live = true; S.lastIndex = -1; setRunning(true); connect(id, 0); return;
+  }
+  if (S.es) { S.es.close(); S.es = null; }
+  const r = await fetch('/api/runs/' + encodeURIComponent(id));
+  if (!r.ok) { alert('Không mở được lần chạy này'); return; }
+  const events = await r.json();
+  S.live = false; S.lastIndex = -1; S.replaying = true;
+  for (const ev of events) handle(ev);
+  S.replaying = false;
+  if (!S.finished) { S.finished = true; $('#banner').insertAdjacentHTML('beforeend', '<div class="banner err">Lần chạy này bị ngắt giữa chừng (server tắt khi đang chạy).</div>'); }
+  for (const st of S.list) renderStage(st);
+  $('#clock').textContent = '';
+  logEl.scrollTop = logEl.scrollHeight;
+}
+async function refreshStatus() {
+  try {
+    const s = await (await fetch('/api/status')).json();
+    S.status = s;
+    const db = s.db.ok ? (s.db.leftover_indexes ? `<span class="warn">${esc(s.db.text)} · còn ${s.db.leftover_indexes} chỉ mục tuning</span>` : `<span class="ok">${esc(s.db.text)}</span>`) : `<span class="bad" title="${esc(s.db.text)}">PostgreSQL không kết nối được</span>`;
+    const llm = s.llm.configured ? `<span class="ok">LLM ${esc(s.llm.model)}</span>` : '<span class="warn">chưa cấu hình LLM: chỉ dùng phản hồi đã lưu</span>';
+    $('#health').innerHTML = db + llm;
+    $('#model').textContent = s.llm.configured ? `(${s.llm.model})` : '';
+    document.querySelector('input[name=llm][value=live]').disabled = !s.llm.configured || s.running;
+    return s;
+  } catch (e) {
+    $('#health').innerHTML = '<span class="bad">mất kết nối tới demo/server.py</span>';
+    return null;
+  }
+}
+async function refreshRuns() {
+  try {
+    const runs = await (await fetch('/api/runs')).json();
+    const label = { done: 'xong', stopped: 'đã dừng', error: 'lỗi', running: 'đang chạy', interrupted: 'bị ngắt' };
+    $('#runs').innerHTML = runs.length ? runs.map(r => `<option value="${esc(r.id)}">${esc(r.started || r.id)} · ${esc(r.variant)}${r.live_llm ? ' · LLM thật' : ''} · ${label[r.status] || r.status}${r.best ? ` · ${esc(r.best)} ${sec(r.best_time)}` : ''}</option>`).join('') : '<option value="">(chưa có)</option>';
+  } catch (e) { /* server tắt */ }
+}
+$('#run').addEventListener('click', start);
+$('#stop').addEventListener('click', stop);
+$('#load').addEventListener('click', () => loadRun($('#runs').value));
+
+// giao diện sáng / tối
+(function () {
+  let saved = null;
+  try { saved = localStorage.getItem('lt-demo-theme'); } catch (e) { /* trình duyệt chặn storage */ }
+  if (saved) document.documentElement.dataset.theme = saved;
+  $('#theme').addEventListener('click', () => {
+    const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    const next = dark ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('lt-demo-theme', next); } catch (e) { /* bỏ qua */ }
+  });
+})();
+
+setInterval(() => {
+  if (!S.job || !S.live || S.finished) return;
+  $('#clock').textContent = `đang chạy ${clock(nowTs())}`;
+  document.querySelectorAll('[data-since]').forEach(el => { el.textContent = sec(nowTs() - Number(el.dataset.since), 0); });
+  for (const st of S.list) {
+    if (st.status !== 'run') continue;
+    $('.st', st.el).textContent = statusLabel(st);
+    if (st.kind === 'select') renderSelectLive(st);
+  }
+}, 250);
+let resizeTimer = 0;
+addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { for (const st of S.list) if (st.kind === 'select' && st.data.sel) renderSelectLive(st); }, 150);
+});
+
+(async function init() {
+  syncPresets();
+  $('#presets button[data-p="111"]').click();
+  const s = await refreshStatus();
+  await refreshRuns();
+  if (s && s.current) {
+    if (s.running) { S.live = true; setRunning(true); connect(s.current.id, 0); }
+    else await loadRun(s.current.id);
+  }
+})();
+</script>
+</body>
+</html>

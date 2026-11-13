@@ -1,0 +1,20 @@
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM postgres:17
+        RUN apt-get update && apt-get install -y --no-install-recommends postgresql-17-hypopg \
+            && rm -rf /var/lib/apt/lists/*
+    image: lambdatune-pg:17-hypopg
+    container_name: lambdatune-pg
+    environment:
+      POSTGRES_DB: tpch
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports: ["5433:5432"]
+    shm_size: 4gb 
+    init: true
+    command: bash -c 'trap "gosu postgres pg_ctl -m fast stop; exit" INT TERM; docker-entrypoint.sh postgres & while :; do sleep 1; done'
+    volumes: [pgdata:/var/lib/postgresql/data]
+volumes:
+  pgdata:
